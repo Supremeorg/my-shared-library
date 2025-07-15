@@ -3,7 +3,6 @@ def call(Map config = [:]) {
         agent any
 
         environment {
-            // Define defaults only as string literals
             IMAGE = 'brightex99/flaskapps'
         }
 
@@ -11,12 +10,10 @@ def call(Map config = [:]) {
             stage('Prepare') {
                 steps {
                     script {
-                        // Dynamically override IMAGE if provided via config
                         if (config.image) {
                             env.IMAGE = config.image
                         }
 
-                        // Now define and expose TAG + IMAGE_TAG
                         env.TAG = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
                         env.IMAGE_TAG = "${env.IMAGE}:${env.TAG}"
                         echo "✅ Image to be built: ${env.IMAGE_TAG}"
@@ -26,7 +23,7 @@ def call(Map config = [:]) {
 
             stage('Build') {
                 steps {
-                    sh "docker build -t $IMAGE_TAG ."
+                    sh "docker build -t ${env.IMAGE_TAG} ."
                 }
             }
 
@@ -35,10 +32,10 @@ def call(Map config = [:]) {
                     withCredentials([string(credentialsId: 'snyk-token', variable: 'SNYK_TOKEN')]) {
                         sh """
                             echo '🔐 Authenticating Snyk CLI...'
-                            snyk auth $SNYK_TOKEN
+                            snyk auth ${SNYK_TOKEN}
 
-                            echo '🛡️ Running Snyk scan on Docker image: $IMAGE_TAG'
-                            snyk test --docker $IMAGE_TAG --file=Dockerfile
+                            echo '🛡️ Running Snyk scan on Docker image: ${env.IMAGE_TAG}'
+                            snyk test --docker ${env.IMAGE_TAG} --file=Dockerfile
                         """
                     }
                 }
@@ -53,9 +50,9 @@ def call(Map config = [:]) {
                     )]) {
                         sh """
                             echo "$PASS" | docker login -u "$USER" --password-stdin
-                            docker push $IMAGE_TAG
-                            docker tag $IMAGE_TAG $IMAGE:latest
-                            docker push $IMAGE:latest
+                            docker push ${env.IMAGE_TAG}
+                            docker tag ${env.IMAGE_TAG} ${env.IMAGE}:latest
+                            docker push ${env.IMAGE}:latest
                         """
                     }
                 }
