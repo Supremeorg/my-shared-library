@@ -1,19 +1,15 @@
 def call(Map config = [:]) {
     pipeline {
         agent any
-        environment {
-            IMAGE = config.image ?: 'brightex99/flaskapps'
-            DOCKER_CREDENTIALS = 'docker-creds'
-            SNYK_TOKEN_ID = 'snyk-token'
-        }
 
         stages {
-            stage('Set Tag') {
+            stage('Prepare') {
                 steps {
                     script {
+                        IMAGE = config.image ?: 'brightex99/flaskapps'
                         TAG = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
                         IMAGE_TAG = "${IMAGE}:${TAG}"
-                        echo "Tag: ${IMAGE_TAG}"
+                        echo "Image to be built: ${IMAGE_TAG}"
                     }
                 }
             }
@@ -26,7 +22,7 @@ def call(Map config = [:]) {
 
             stage('Snyk Scan') {
                 steps {
-                    withCredentials([string(credentialsId: SNYK_TOKEN_ID, variable: 'SNYK_TOKEN')]) {
+                    withCredentials([string(credentialsId: 'snyk-token', variable: 'SNYK_TOKEN')]) {
                         sh '''
                             curl -sL https://snyk.io/install | bash
                             export PATH=$PATH:/root/.snyk
@@ -37,19 +33,19 @@ def call(Map config = [:]) {
                 }
             }
 
-            stage('Push to DockerHub') {
+            stage('Push to Docker Hub') {
                 steps {
                     withCredentials([usernamePassword(
-                        credentialsId: DOCKER_CREDENTIALS,
+                        credentialsId: 'docker-creds',
                         usernameVariable: 'USER',
                         passwordVariable: 'PASS'
                     )]) {
-                        sh '''
+                        sh """
                             echo "$PASS" | docker login -u "$USER" --password-stdin
                             docker push ${IMAGE_TAG}
                             docker tag ${IMAGE_TAG} ${IMAGE}:latest
                             docker push ${IMAGE}:latest
-                        '''
+                        """
                     }
                 }
             }
