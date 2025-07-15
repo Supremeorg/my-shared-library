@@ -13,7 +13,6 @@ def call(Map config = [:]) {
                         if (config.image) {
                             env.IMAGE = config.image
                         }
-
                         env.TAG = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
                         env.IMAGE_TAG = "${env.IMAGE}:${env.TAG}"
                         echo "✅ Image to be built: ${env.IMAGE_TAG}"
@@ -30,13 +29,13 @@ def call(Map config = [:]) {
             stage('Snyk Scan') {
                 steps {
                     withCredentials([string(credentialsId: 'snyk-token', variable: 'SNYK_TOKEN')]) {
-                        sh """
-                            echo '🔐 Authenticating Snyk CLI...'
-                            snyk auth ${SNYK_TOKEN}
+                        sh '''
+                            echo "🔐 Authenticating Snyk CLI..."
+                            snyk auth "$SNYK_TOKEN"
 
-                            echo '🛡️ Running Snyk scan on Docker image: ${env.IMAGE_TAG}'
-                            snyk test --docker ${env.IMAGE_TAG} --file=Dockerfile
-                        """
+                            echo "🛡️ Running Snyk scan on Docker image: $IMAGE_TAG"
+                            snyk test --docker "$IMAGE_TAG" --file=Dockerfile
+                        '''
                     }
                 }
             }
@@ -48,12 +47,12 @@ def call(Map config = [:]) {
                         usernameVariable: 'USER',
                         passwordVariable: 'PASS'
                     )]) {
-                        sh """
+                        sh '''
                             echo "$PASS" | docker login -u "$USER" --password-stdin
-                            docker push ${env.IMAGE_TAG}
-                            docker tag ${env.IMAGE_TAG} ${env.IMAGE}:latest
-                            docker push ${env.IMAGE}:latest
-                        """
+                            docker push "$IMAGE_TAG"
+                            docker tag "$IMAGE_TAG" "$IMAGE:latest"
+                            docker push "$IMAGE:latest"
+                        '''
                     }
                 }
             }
