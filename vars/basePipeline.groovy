@@ -24,8 +24,6 @@ def call(Map config = [:]) {
                 steps {
                     withCredentials([string(credentialsId: 'snyk-token', variable: 'SNYK_TOKEN')]) {
                         sh '''
-                            curl -sL https://snyk.io/install | bash
-                            export PATH=$PATH:/root/.snyk
                             snyk auth $SNYK_TOKEN
                             snyk test --docker ${IMAGE_TAG} --file=Dockerfile
                         '''
