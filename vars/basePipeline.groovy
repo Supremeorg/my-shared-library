@@ -3,13 +3,20 @@ def call(Map config = [:]) {
         agent any
 
         environment {
-            IMAGE = config.image ?: 'brightex99/flaskapps'
+            // Define defaults only as string literals
+            IMAGE = 'brightex99/flaskapps'
         }
 
         stages {
             stage('Prepare') {
                 steps {
                     script {
+                        // Dynamically override IMAGE if provided via config
+                        if (config.image) {
+                            env.IMAGE = config.image
+                        }
+
+                        // Now define and expose TAG + IMAGE_TAG
                         env.TAG = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
                         env.IMAGE_TAG = "${env.IMAGE}:${env.TAG}"
                         echo "✅ Image to be built: ${env.IMAGE_TAG}"
@@ -46,10 +53,7 @@ def call(Map config = [:]) {
                     )]) {
                         sh """
                             echo "$PASS" | docker login -u "$USER" --password-stdin
-                            echo '📤 Pushing $IMAGE_TAG to Docker Hub...'
                             docker push $IMAGE_TAG
-
-                            echo '📌 Tagging as latest...'
                             docker tag $IMAGE_TAG $IMAGE:latest
                             docker push $IMAGE:latest
                         """
