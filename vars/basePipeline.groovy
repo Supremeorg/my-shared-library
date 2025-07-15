@@ -24,7 +24,10 @@ def call(Map config = [:]) {
                 steps {
                     withCredentials([string(credentialsId: 'snyk-token', variable: 'SNYK_TOKEN')]) {
                         sh '''
+                            echo "Authenticating Snyk CLI..."
                             snyk auth $SNYK_TOKEN
+
+                            echo "Running Snyk scan on Docker image: ${IMAGE_TAG}"
                             snyk test --docker ${IMAGE_TAG} --file=Dockerfile
                         '''
                     }
