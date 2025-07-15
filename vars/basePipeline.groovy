@@ -2,34 +2,37 @@ def call(Map config = [:]) {
     pipeline {
         agent any
 
+        environment {
+            IMAGE = config.image ?: 'brightex99/flaskapps'
+        }
+
         stages {
             stage('Prepare') {
                 steps {
                     script {
-                        IMAGE = config.image ?: 'brightex99/flaskapps'
-                        TAG = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
-                        IMAGE_TAG = "${IMAGE}:${TAG}"
-                        echo "Image to be built: ${IMAGE_TAG}"
+                        env.TAG = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
+                        env.IMAGE_TAG = "${env.IMAGE}:${env.TAG}"
+                        echo "✅ Image to be built: ${env.IMAGE_TAG}"
                     }
                 }
             }
 
             stage('Build') {
                 steps {
-                    sh "docker build -t ${IMAGE_TAG} ."
+                    sh "docker build -t $IMAGE_TAG ."
                 }
             }
 
             stage('Snyk Scan') {
                 steps {
                     withCredentials([string(credentialsId: 'snyk-token', variable: 'SNYK_TOKEN')]) {
-                        sh '''
-                            echo "Authenticating Snyk CLI..."
+                        sh """
+                            echo '🔐 Authenticating Snyk CLI...'
                             snyk auth $SNYK_TOKEN
 
-                            echo "Running Snyk scan on Docker image: ${IMAGE_TAG}"
-                            snyk test --docker ${IMAGE_TAG} --file=Dockerfile
-                        '''
+                            echo '🛡️ Running Snyk scan on Docker image: $IMAGE_TAG'
+                            snyk test --docker $IMAGE_TAG --file=Dockerfile
+                        """
                     }
                 }
             }
@@ -43,9 +46,12 @@ def call(Map config = [:]) {
                     )]) {
                         sh """
                             echo "$PASS" | docker login -u "$USER" --password-stdin
-                            docker push ${IMAGE_TAG}
-                            docker tag ${IMAGE_TAG} ${IMAGE}:latest
-                            docker push ${IMAGE}:latest
+                            echo '📤 Pushing $IMAGE_TAG to Docker Hub...'
+                            docker push $IMAGE_TAG
+
+                            echo '📌 Tagging as latest...'
+                            docker tag $IMAGE_TAG $IMAGE:latest
+                            docker push $IMAGE:latest
                         """
                     }
                 }
